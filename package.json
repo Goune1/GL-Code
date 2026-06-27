@@ -1,0 +1,51 @@
+{
+  "name": "gl-code",
+  "version": "0.1.0",
+  "description": "GL Code desktop client to chat with multiple AI agents (OpenClaw, Claude Code)",
+  "author": "gael",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "./out/main/index.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "dist": "electron-vite build && electron-builder --config electron-builder.yml"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.191",
+    "@fontsource/geist-mono": "^5.2.8",
+    "@fontsource/geist-sans": "^5.2.5",
+    "@phosphor-icons/react": "^2.1.10",
+    "better-sqlite3": "^12.11.1",
+    "highlight.js": "^11.11.1",
+    "openclaw-node": "^0.13.0",
+    "react-diff-view": "^3.3.3",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1",
+    "simple-git": "^3.36.0",
+    "ssh2": "^1.16.0",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/ssh2": "^1.15.1",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^2.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  }
+}
