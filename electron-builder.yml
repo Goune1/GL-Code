@@ -3,7 +3,7 @@ productName: GL Code
 copyright: Copyright © 2026 Gaël LE DREO
 
 directories:
-  output: dist
+  output: C:\Users\goune\Downloads\GL-Code-build
   buildResources: resources
 
 files:
@@ -11,15 +11,19 @@ files:
   - resources/**/*
   - package.json
 
-# Native addons (better-sqlite3, ssh2) ne peuvent pas être dans l'asar
+# Native addons and executables that cannot be run from inside an asar archive.
+# claude.exe (Claude Code binary) and .node bindings must live in app.asar.unpacked
+# so the OS can spawn/dlopen them directly.
 asarUnpack:
   - "**/*.node"
   - "**/node_modules/better-sqlite3/**"
   - "**/node_modules/ssh2/**"
+  - "**/node_modules/@anthropic-ai/claude-agent-sdk/**"
+  - "**/node_modules/@anthropic-ai/claude-agent-sdk-win32-x64/**"
 
 win:
   target:
-    - target: portable
+    - target: nsis
       arch: x64
   icon: resources/icon.png
   artifactName: GL-Code-Setup.exe

@@ -21,6 +21,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { app } from 'electron'
 import type {
   query as QueryFn,
   Options,
@@ -30,6 +31,23 @@ import type {
   SdkBeta,
 } from '@anthropic-ai/claude-agent-sdk'
 import type { AgentAdapter, AgentEvent, Attachment, SendOpts } from './openclaw-adapter'
+
+// In packaged builds, binaries live in app.asar.unpacked (not inside the asar
+// archive, which the OS cannot execute). Rewrite the asar path to unpacked so
+// child_process.spawn resolves the real file. Returns undefined in dev so the
+// SDK finds the exe itself via normal module resolution.
+function resolveClaudeExePath(): string | undefined {
+  if (!app.isPackaged) return undefined
+  const appPath = app.getAppPath() // …/resources/app.asar
+  const exePath = join(
+    appPath.replace('app.asar', 'app.asar.unpacked'),
+    'node_modules',
+    '@anthropic-ai',
+    'claude-agent-sdk-win32-x64',
+    'claude.exe',
+  )
+  return existsSync(exePath) ? exePath : undefined
+}
 
 // The SDK ships ESM-only (sdk.mjs). Our main process loads as CommonJS
 // (Electron's static ESM import of the 'electron' built-in is broken under
@@ -94,6 +112,7 @@ export async function fetchSupportedModels(apiKey: string | undefined): Promise<
   async function* prompt(): AsyncGenerator<SDKUserMessage> {
     await gate // never yields — keeps the session open until released
   }
+  const claudeExe = resolveClaudeExePath()
   const { query } = await loadSdk()
   const q = query({
     prompt: prompt(),
@@ -103,6 +122,7 @@ export async function fetchSupportedModels(apiKey: string | undefined): Promise<
       allowDangerouslySkipPermissions: true,
       settingSources: [],
       env: apiKey ? { ...process.env, ANTHROPIC_API_KEY: apiKey } : process.env,
+      ...(claudeExe ? { pathToClaudeCodeExecutable: claudeExe } : {}),
     },
   })
   try {
@@ -129,6 +149,7 @@ export async function fetchSupportedCommands(apiKey: string | undefined): Promis
   async function* prompt(): AsyncGenerator<SDKUserMessage> {
     await gate // never yields — keeps the session open until released
   }
+  const claudeExe = resolveClaudeExePath()
   const { query } = await loadSdk()
   const q = query({
     prompt: prompt(),
@@ -138,6 +159,7 @@ export async function fetchSupportedCommands(apiKey: string | undefined): Promis
       allowDangerouslySkipPermissions: true,
       settingSources: [],
       env: apiKey ? { ...process.env, ANTHROPIC_API_KEY: apiKey } : process.env,
+      ...(claudeExe ? { pathToClaudeCodeExecutable: claudeExe } : {}),
     },
   })
   try {
@@ -293,6 +315,9 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       env: apiKey ? { ...process.env, ANTHROPIC_API_KEY: apiKey } : process.env,
     }
 
+    const claudeExe = resolveClaudeExePath()
+    if (claudeExe) options.pathToClaudeCodeExecutable = claudeExe
+
     try {
       const { query } = await loadSdk()
       for await (const msg of query({ prompt: this.buildPrompt(text, attachments), options })) {
@@ -330,10 +355,14 @@ export class ClaudeCodeAdapter implements AgentAdapter {
           }
         } else if (msg.type === 'result') {
           if (msg.is_error || msg.subtype !== 'success') {
+            // SDKResultError carries errors:string[] with the actual reason.
+            // SDKResultSuccess carries result:string. Check both.
+            const errMsg = msg as unknown as { errors?: string[]; result?: string }
             const detail =
-              'result' in msg && typeof msg.result === 'string' && msg.result
-                ? msg.result
-                : `Échec (${msg.subtype}).`
+              errMsg.errors?.length
+                ? errMsg.errors.join('\n')
+                : errMsg.result || `Échec (${msg.subtype}).`
+            console.error('[claude-code] result error', msg.subtype, errMsg.errors)
             yield { type: 'error', message: detail }
           }
           yield { type: 'done' }
